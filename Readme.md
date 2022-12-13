@@ -1,0 +1,1 @@
+# Smartio test assignment
