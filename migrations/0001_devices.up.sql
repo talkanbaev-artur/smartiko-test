@@ -7,5 +7,11 @@ create table if not exists params_records (
     id serial primary key,
     device_id integer not null,
     flag smallint not null,
-    change_time timestamptz not null default ('now')
+    value boolean not null default 'false',
+    change_time timestamptz not null default ('now'),
+    constraint unq_devid_flag UNIQUE (device_id, flag),
+	constraint fk_params_records_devices
+		foreign key (device_id)
+			references devices(id)
 );
+
