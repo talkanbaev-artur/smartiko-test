@@ -4,6 +4,7 @@ import (
 	"context"
 	"ehdw/smartiko-test/src/logic/service/model"
 	"errors"
+	"fmt"
 )
 
 type Service interface {
@@ -34,18 +35,54 @@ func NewService(rp Repository) Service {
 
 var ErrNotImplemented = errors.New("method not implemented")
 
+type ServiceError struct {
+	Err    error
+	Stage  string
+	Method string
+}
+
+func (e ServiceError) Update(stage string, err error) ServiceError {
+	e.Err = err
+	e.Stage = stage
+	return e
+}
+
+func (e ServiceError) Error() string {
+	return fmt.Sprintf("failed processing of '%s' at the stage '%s'; err: %s", e.Method, e.Stage, e.Err.Error())
+}
+
 func (s service) AddDevice(ctx context.Context, deviceName string) (int, error) {
-	return 0, ErrNotImplemented
+	e := ServiceError{Method: "add device"}
+	id, err := s.r.CreateDevice(ctx, deviceName)
+	if err != nil {
+		return 0, e.Update("db query", err)
+	}
+	return id, nil
 }
 
 func (s service) DeleteDevice(ctx context.Context, deviceName string) error {
-	return ErrNotImplemented
+	e := ServiceError{Method: "delete device"}
+	err := s.r.DeleteDevice(ctx, deviceName)
+	if err != nil {
+		return e.Update("db query", err)
+	}
+	return nil
 }
 
 func (s service) GetDevice(ctx context.Context, deviceName string) (model.Device, error) {
-	return model.Device{}, ErrNotImplemented
+	e := ServiceError{Method: "get device"}
+	dev, err := s.r.GetDevice(ctx, deviceName)
+	if err != nil {
+		return model.Device{}, e.Update("db query", err)
+	}
+	return dev, nil
 }
 
 func (s service) GetDevices(ctx context.Context) ([]model.Device, error) {
-	return nil, ErrNotImplemented
+	e := ServiceError{Method: "get devices"}
+	devs, err := s.r.GetDevices(ctx)
+	if err != nil {
+		return nil, e.Update("db query", err)
+	}
+	return devs, nil
 }
