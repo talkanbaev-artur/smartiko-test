@@ -53,7 +53,7 @@ func MakeServer(r *mux.Router, s service.Service) error {
 		transp.NewServer(
 			ends.AddDeviceEndpoint,
 			decodeDeviceID,
-			encodeResponse,
+			encodeCreated,
 			options...,
 		),
 	)
@@ -62,7 +62,7 @@ func MakeServer(r *mux.Router, s service.Service) error {
 		transp.NewServer(
 			ends.AddDevicesEndpoint,
 			decodeDeviceArray,
-			encodeResponse,
+			encodeCreated,
 			options...,
 		),
 	)
@@ -108,6 +108,12 @@ func decodeDeviceURL(_ context.Context, r *http.Request) (any, error) {
 		return nil, errors.New("id not supplied")
 	}
 	return req, nil
+}
+
+func encodeCreated(_ context.Context, w http.ResponseWriter, response interface{}) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	return json.NewEncoder(w).Encode(response)
 }
 
 func encodeResponse(_ context.Context, w http.ResponseWriter, response interface{}) error {

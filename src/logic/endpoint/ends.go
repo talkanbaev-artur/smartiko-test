@@ -39,7 +39,7 @@ func makeAddDeviceEndpoint(s service.Service) endpoint.Endpoint {
 	logger := logkit.NewLogger(logrus.New())
 	e := func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(DeviceID)
-		_, err = s.AddDevice(ctx, req.ID)
+		response, err = s.AddDevice(ctx, req.ID)
 		return
 	}
 	e = util.LoggingMiddleware(logger, "add device")(e)
@@ -50,12 +50,16 @@ func makeAddDevicesEndpoint(s service.Service) endpoint.Endpoint {
 	logger := logkit.NewLogger(logrus.New())
 	e := func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.([]DeviceID)
+		resp := []int{}
 		for _, r := range req {
-			_, err = s.AddDevice(ctx, r.ID)
+			var id int
+			id, err = s.AddDevice(ctx, r.ID)
 			if err != nil {
 				return
 			}
+			resp = append(resp, id)
 		}
+		response = resp
 		return
 	}
 	e = util.LoggingMiddleware(logger, "add devices")(e)
