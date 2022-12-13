@@ -14,9 +14,9 @@ import (
 type Endpoints struct {
 	AddDeviceEndpoint     endpoint.Endpoint
 	AddDevicesEndpoint    endpoint.Endpoint
-	GetDeviceEndppint     endpoint.Endpoint
-	GetDevicesEndppint    endpoint.Endpoint
-	DeleteDeviceEndppint  endpoint.Endpoint
+	GetDeviceEndpoint     endpoint.Endpoint
+	GetDevicesEndpoint    endpoint.Endpoint
+	DeleteDeviceEndpoint  endpoint.Endpoint
 	DeleteDevicesEndpoint endpoint.Endpoint
 }
 
@@ -24,9 +24,9 @@ func MakeEdnpoints(s service.Service) Endpoints {
 	es := Endpoints{}
 	es.AddDeviceEndpoint = makeAddDeviceEndpoint(s)
 	es.AddDevicesEndpoint = makeAddDevicesEndpoint(s)
-	es.DeleteDeviceEndppint = makeDeleteDeviceEndpoint(s)
-	es.GetDeviceEndppint = makeGetDeviceEndpoint(s)
-	es.GetDevicesEndppint = makeGetDevicesEndpoint(s)
+	es.DeleteDeviceEndpoint = makeDeleteDeviceEndpoint(s)
+	es.GetDeviceEndpoint = makeGetDeviceEndpoint(s)
+	es.GetDevicesEndpoint = makeGetDevicesEndpoint(s)
 	es.DeleteDevicesEndpoint = makeDeleteDevicesEndpoint(s)
 	return es
 }

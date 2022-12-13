@@ -5,7 +5,7 @@ import "time"
 type Device struct {
 	ID               string `json:"id"`               //text eui id for device
 	AcceptenceResult bool   `json:"acceptanceResult"` //computed
-	Flags            []Flag
+	Flags            []*Flag
 }
 
 type Flag struct {

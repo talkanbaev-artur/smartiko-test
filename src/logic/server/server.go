@@ -31,9 +31,9 @@ func MakeServer(r *mux.Router, s service.Service) error {
 		transp.ServerErrorHandler(transport.NewLogErrorHandler(logkit.NewLogger(logrus.New()))),
 	}
 
-	r.Methods("DELETE").Path("/device/:id").Handler(
+	r.Methods("DELETE").Path("/device/{id}").Handler(
 		transp.NewServer(
-			ends.DeleteDeviceEndppint,
+			ends.DeleteDeviceEndpoint,
 			decodeDeviceURL,
 			encodeResponse,
 			options...,
@@ -67,9 +67,9 @@ func MakeServer(r *mux.Router, s service.Service) error {
 		),
 	)
 
-	r.Methods("GET").Path("/device/:id").Handler(
+	r.Methods("GET").Path("/device/{id}").Handler(
 		transp.NewServer(
-			ends.GetDevicesEndppint,
+			ends.GetDeviceEndpoint,
 			decodeDeviceURL,
 			encodeResponse,
 			options...,
@@ -78,7 +78,7 @@ func MakeServer(r *mux.Router, s service.Service) error {
 
 	r.Methods("GET").Path("/").Handler(
 		transp.NewServer(
-			ends.GetDevicesEndppint,
+			ends.GetDevicesEndpoint,
 			decodeEmpty,
 			encodeResponse,
 			options...,
