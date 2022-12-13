@@ -3,8 +3,12 @@ package service
 import (
 	"context"
 	"ehdw/smartiko-test/src/logic/service/model"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 type Service interface {
@@ -19,7 +23,8 @@ type Repository interface {
 	GetDevice(ctx context.Context, devID string) (model.Device, error)
 	GetDevices(ctx context.Context) ([]model.Device, error)
 	DeleteDevice(ctx context.Context, devID string) error
-	ModifyFlags(ctx context.Context, devID string, flags []model.Flag) error
+	ModifyFlags(ctx context.Context, devID string, flags []*model.Flag) error
+	GetAllEnabledDevices(ctx context.Context) ([]string, error)
 }
 
 type MessageProcessingFunc func(topicName, msgBody string)
@@ -35,6 +40,8 @@ type service struct {
 
 func NewService(rp Repository, q Queue) Service {
 	s := service{r: rp, q: q}
+	devices, _ := rp.GetAllEnabledDevices(context.Background())
+	q.RegisterDevices(context.Background(), s.generalMessageProcessor, devices...)
 	return s
 }
 
@@ -62,7 +69,43 @@ func (s service) AddDevice(ctx context.Context, deviceName string) (int, error) 
 	if err != nil {
 		return 0, e.Update("db query", err)
 	}
+	s.q.RegisterDevices(ctx, s.generalMessageProcessor, deviceName)
 	return id, nil
+}
+
+type flagMsg struct {
+	DeviceID string `json:"dev_eui"`
+	ParamID  int    `json:"param_id"`
+	Value    int    `json:"value"`
+}
+
+func (s service) generalMessageProcessor(topicName, msgBody string) {
+	var cont []flagMsg
+	err := json.Unmarshal([]byte(msgBody), &cont)
+	if err != nil {
+		logrus.Debug("failed to deser msg body", "body", msgBody)
+		return
+	}
+	m := make(map[string][]*model.Flag)
+	for _, c := range cont {
+		f := model.Flag{ChangeTime: time.Now()}
+		if c.ParamID == 1 {
+			if c.Value == 0 {
+				f.Number = 1
+				f.Value = true
+			} else {
+				f.Number = 2
+				f.Value = true
+			}
+		} else if c.ParamID == 2 && c.Value > 11 {
+			f.Number = 3
+			f.Value = true
+		}
+		m[c.DeviceID] = append(m[c.DeviceID], &f)
+	}
+	for k, v := range m {
+		s.r.ModifyFlags(context.Background(), k, v)
+	}
 }
 
 func (s service) DeleteDevice(ctx context.Context, deviceName string) error {
@@ -79,6 +122,9 @@ func (s service) GetDevice(ctx context.Context, deviceName string) (model.Device
 	dev, err := s.r.GetDevice(ctx, deviceName)
 	if err != nil {
 		return model.Device{}, e.Update("db query", err)
+	}
+	for _, f := range dev.Flags {
+		f.Name = fmt.Sprintf("flag%d", f.Number)
 	}
 	return dev, nil
 }

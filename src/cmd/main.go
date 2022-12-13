@@ -4,6 +4,10 @@ import (
 	"context"
 	"ehdw/smartiko-test/src/config"
 	"ehdw/smartiko-test/src/db"
+	"ehdw/smartiko-test/src/logic/queue"
+	"ehdw/smartiko-test/src/logic/repo"
+	"ehdw/smartiko-test/src/logic/server"
+	"ehdw/smartiko-test/src/logic/service"
 	"ehdw/smartiko-test/src/util"
 	"fmt"
 	"net/http"
@@ -22,8 +26,12 @@ func main() {
 	config.Init()
 
 	//TODO use the pool
-	db.ConnectPGDatabase(ctx, true)
+	q := queue.NewQueue()
+	defer q.Stop()
+	pdb := db.ConnectPGDatabase(ctx, true)
+	svc := service.NewService(repo.NewRepository(pdb), q)
 	r := mux.NewRouter()
+	server.MakeServer(r, svc)
 	util.CreateHealthCheck(r)
 	go func() {
 		srv := http.Server{
