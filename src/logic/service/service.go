@@ -22,14 +22,19 @@ type Repository interface {
 	ModifyFlags(ctx context.Context, devID string, flags []model.Flag) error
 }
 
-type service struct {
-	r Repository
+type MessageProcessingFunc func(topicName, msgBody string)
+
+type Queue interface {
+	RegisterDevices(ctx context.Context, f MessageProcessingFunc, deviceNames ...string) error
 }
 
-func NewService(rp Repository) Service {
-	s := service{r: rp}
-	//TODO:
-	//start mqtt worker here
+type service struct {
+	r Repository
+	q Queue
+}
+
+func NewService(rp Repository, q Queue) Service {
+	s := service{r: rp, q: q}
 	return s
 }
 
