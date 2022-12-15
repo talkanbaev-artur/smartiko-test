@@ -4,6 +4,7 @@ import (
 	"context"
 	"ehdw/smartiko-test/src/logic/service"
 	"ehdw/smartiko-test/src/logic/service/model"
+	"fmt"
 
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -48,7 +49,10 @@ func (r repo) CreateDevice(ctx context.Context, devID string) (int, error) {
 
 func (r repo) GetDevice(ctx context.Context, devID string) (model.Device, error) {
 	query := `select d.eui, p.flag, p.value, p.change_time from devices as d inner join params_records as p on p.device_id = d.id where d.eui = $1`
-	rows, _ := r.pg.Query(ctx, query, devID)
+	rows, err := r.pg.Query(ctx, query, devID)
+	if err != nil {
+		return model.Device{}, err
+	}
 	defer rows.Close()
 	d := model.Device{ID: devID}
 	for rows.Next() {
@@ -56,11 +60,34 @@ func (r repo) GetDevice(ctx context.Context, devID string) (model.Device, error)
 		rows.Scan(&d.ID, &f.Number, &f.Value, &f.ChangeTime)
 		d.Flags = append(d.Flags, f)
 	}
+	if len(d.Flags) == 0 {
+		return model.Device{}, service.NoDeviceFound
+	}
 	return d, nil
 }
 
 func (r repo) GetDevices(ctx context.Context) ([]model.Device, error) {
-	return []model.Device{}, service.ErrNotImplemented
+	query := `select d.eui, p.flag, p.value, p.change_time from devices as d inner join params_records as p on p.device_id = d.id`
+	rows, _ := r.pg.Query(ctx, query)
+	defer rows.Close()
+	m := make(map[string]*model.Device)
+	for rows.Next() {
+		f := &model.Flag{}
+		id := ""
+		rows.Scan(&id, &f.Number, &f.Value, &f.ChangeTime)
+		d, ok := m[id]
+		if !ok {
+			d = &model.Device{ID: id}
+			m[id] = d
+		}
+		f.Name = fmt.Sprintf("flag%d", f.Number)
+		d.Flags = append(d.Flags, f)
+	}
+	var res []model.Device
+	for _, k := range m {
+		res = append(res, *k)
+	}
+	return res, nil
 }
 
 func (r repo) DeleteDevice(ctx context.Context, devID string) error {
