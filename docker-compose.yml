@@ -3,11 +3,38 @@ services:
     image: eclipse-mosquitto:latest
     volumes:
       - ./docker/:/mosquitto/config/:ro
-      - ./log/:/mosquitto/log/
+      - log:/mosquitto/log/
       - data:/mosquitto/data/
     ports:
       - 1883:1883
-      - 9001:9001
-
+  db:
+    image: postgres:14.1-alpine
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - db:/var/lib/postgresql/data
+  service:
+    image: ehdw/smartiko-test
+    build: .
+    depends_on:
+      - db
+      - mosquitto
+    environment:
+      - PG_HOST=db
+      - PG_PASSWORD=postgres
+      - PG_USER=postgres
+      - PG_PORT=5432
+      - PG_DATABASE=smartiko-test
+      - PORT=8000
+      - MQTT_HOST=mosquitto
+    ports:
+      - 8000:8000
 volumes:
-  data: ~
+  log:
+    driver: local
+  data:
+    driver: local
+  db:
+    driver: local
