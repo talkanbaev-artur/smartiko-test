@@ -17,7 +17,8 @@ type Cfg struct {
 		Password string
 		Db       string
 	}
-	ServerPort int
+	ServerPort    int
+	MosquittoHost string
 }
 
 var conf Cfg
@@ -34,6 +35,7 @@ func Init() {
 	conf.Database.Password = readField("PG_PASSWORD")
 	conf.Database.Db = readField("PG_DATABASE")
 	conf.ServerPort = readIntField("PORT")
+	conf.MosquittoHost = readField("MQTT_HOST")
 }
 
 func Config() Cfg {

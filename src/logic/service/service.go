@@ -31,6 +31,7 @@ type MessageProcessingFunc func(topicName, msgBody string)
 
 type Queue interface {
 	RegisterDevices(ctx context.Context, f MessageProcessingFunc, deviceNames ...string) error
+	UnsubscribeDevices(ctx context.Context, deviceNames ...string) error
 }
 
 type service struct {

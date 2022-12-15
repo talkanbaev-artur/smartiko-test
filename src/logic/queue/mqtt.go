@@ -2,16 +2,18 @@ package queue
 
 import (
 	"context"
+	"ehdw/smartiko-test/src/config"
 	"ehdw/smartiko-test/src/logic/service"
+	"ehdw/smartiko-test/src/util"
 	"fmt"
-	"os"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/sirupsen/logrus"
 )
 
 type queue struct {
-	client mqtt.Client
+	client        mqtt.Client
+	activeListens *util.Set[string]
 }
 
 var f mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
@@ -19,24 +21,24 @@ var f mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
 	fmt.Printf("MSG: %s\n", msg.Payload())
 }
 
-var f2 mqtt.MessageHandler = func(c mqtt.Client, m mqtt.Message) {
-	fmt.Printf("Finally: %s, %s", m.Topic(), m.Payload())
-}
-
 func NewQueue() *queue {
-	o := mqtt.NewClientOptions().AddBroker("tcp://localhost:1883").SetClientID("device_proc").SetDefaultPublishHandler(f)
+	broker := fmt.Sprintf("tcp://%s:1883", config.Config().MosquittoHost)
+	o := mqtt.NewClientOptions().AddBroker(broker).SetClientID("device_proc").SetDefaultPublishHandler(f)
 	c := mqtt.NewClient(o)
 	if token := c.Connect(); token.Wait() && token.Error() != nil {
-		panic(token.Error())
+		//panic(token.Error())
+		logrus.Warn("failed to connect to mqtt: " + token.Error().Error())
+		return nil
 	}
 	logrus.Info("successfully initialised the MQTT client")
-	return &queue{client: c}
+	return &queue{client: c, activeListens: util.NewSet[string]()}
 }
 
 func (q *queue) Stop() {
-	if token := q.client.Unsubscribe("go-mqtt/sample"); token.Wait() && token.Error() != nil {
-		fmt.Println(token.Error())
-		os.Exit(1)
+	for _, s := range q.activeListens.ToList() {
+		if token := q.client.Unsubscribe(s); token.Wait() && token.Error() != nil {
+			logrus.Warn("Failed to unsubscribe for " + s + " , err: " + token.Error().Error())
+		}
 	}
 	q.client.Disconnect(250)
 	logrus.Info("Disconnected from the message queue")
@@ -49,6 +51,18 @@ func (q *queue) RegisterDevices(ctx context.Context, f service.MessageProcessing
 	for _, device := range deviceNames {
 		if token := q.client.Subscribe(device+"/out/data", 1, wrapper); token.Wait() && token.Error() != nil {
 			return token.Error()
+		}
+		q.activeListens.Insert(device + "/out/data")
+	}
+	return nil
+}
+
+func (q *queue) UnsubscribeDevices(ctx context.Context, deviceNames ...string) error {
+	for _, d := range deviceNames {
+		if q.activeListens.Has(d) {
+			if token := q.client.Unsubscribe(d); token.Wait() && token.Error() != nil {
+				logrus.Warn("Failed to unsubscribe for " + d + " , err: " + token.Error().Error())
+			}
 		}
 	}
 	return nil
