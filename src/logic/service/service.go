@@ -14,7 +14,7 @@ import (
 type Service interface {
 	AddDevice(ctx context.Context, deviceName string) (int, error)
 	DeleteDevice(ctx context.Context, deviceName string) error
-	GetDevice(ctx context.Context, deviceName string) (model.Device, error)
+	GetDevice(ctx context.Context, deviceName string) (*model.Device, error)
 	GetDevices(ctx context.Context) ([]model.Device, error)
 }
 
@@ -47,6 +47,7 @@ func NewService(rp Repository, q Queue) Service {
 }
 
 var ErrNotImplemented = errors.New("method not implemented")
+var NoDeviceFound = errors.New("requested device does not exist")
 
 type ServiceError struct {
 	Err    error
@@ -115,19 +116,24 @@ func (s service) DeleteDevice(ctx context.Context, deviceName string) error {
 	if err != nil {
 		return e.Update("db query", err)
 	}
+	s.q.UnsubscribeDevices(ctx, deviceName)
 	return nil
 }
 
-func (s service) GetDevice(ctx context.Context, deviceName string) (model.Device, error) {
+func (s service) GetDevice(ctx context.Context, deviceName string) (*model.Device, error) {
 	e := ServiceError{Method: "get device"}
 	dev, err := s.r.GetDevice(ctx, deviceName)
+	if err == NoDeviceFound {
+		return nil, nil
+	}
 	if err != nil {
-		return model.Device{}, e.Update("db query", err)
+		return &model.Device{}, e.Update("db query", err)
 	}
 	for _, f := range dev.Flags {
 		f.Name = fmt.Sprintf("flag%d", f.Number)
 	}
-	return dev, nil
+	s.acceptenceTest(&dev)
+	return &dev, nil
 }
 
 func (s service) GetDevices(ctx context.Context) ([]model.Device, error) {
@@ -136,5 +142,22 @@ func (s service) GetDevices(ctx context.Context) ([]model.Device, error) {
 	if err != nil {
 		return nil, e.Update("db query", err)
 	}
+	if devs == nil {
+		devs = []model.Device{}
+	}
+	for _, d := range devs {
+		s.acceptenceTest(&d)
+	}
 	return devs, nil
+}
+
+func (s service) acceptenceTest(d *model.Device) {
+	res := true
+	for _, f := range d.Flags {
+		if !f.Value || time.Since(f.ChangeTime).Hours() > 72 {
+			res = false
+			break
+		}
+	}
+	d.AcceptenceResult = res
 }
