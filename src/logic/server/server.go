@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"reflect"
 
 	logkit "github.com/go-kit/kit/log/logrus"
 	"github.com/go-kit/kit/transport"
@@ -71,12 +72,12 @@ func MakeServer(r *mux.Router, s service.Service) error {
 		transp.NewServer(
 			ends.GetDeviceEndpoint,
 			decodeDeviceURL,
-			encodeResponse,
+			encodeDevice,
 			options...,
 		),
 	)
 
-	r.Methods("GET").Path("/").Handler(
+	r.Methods("GET").Path("/devices").Handler(
 		transp.NewServer(
 			ends.GetDevicesEndpoint,
 			decodeEmpty,
@@ -121,6 +122,14 @@ func encodeResponse(_ context.Context, w http.ResponseWriter, response interface
 	return json.NewEncoder(w).Encode(response)
 }
 
+func encodeDevice(_ context.Context, w http.ResponseWriter, response interface{}) error {
+	if reflect.ValueOf(response).IsZero() {
+		w.WriteHeader(404)
+		return nil
+	}
+	w.Header().Set("Content-Type", "application/json")
+	return json.NewEncoder(w).Encode(response)
+}
 func decodeEmpty(_ context.Context, r *http.Request) (interface{}, error) {
 	return "", nil
 }
