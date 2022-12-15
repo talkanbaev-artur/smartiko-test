@@ -64,7 +64,19 @@ func (r repo) GetDevices(ctx context.Context) ([]model.Device, error) {
 }
 
 func (r repo) DeleteDevice(ctx context.Context, devID string) error {
-	return service.ErrNotImplemented
+	tx, _ := r.pg.Begin(ctx)
+	defer tx.Rollback(ctx)
+
+	_, err := tx.Exec(ctx, `delete from params_records where device_id = (select id from devices where eui = $1);`, devID)
+	if err != nil {
+		return err
+	}
+	_, err = tx.Exec(ctx, `delete from devices where eui = $1`, devID)
+	if err != nil {
+		return err
+	}
+	tx.Commit(ctx)
+	return nil
 }
 
 func (r repo) ModifyFlags(ctx context.Context, devID string, flags []*model.Flag) error {
