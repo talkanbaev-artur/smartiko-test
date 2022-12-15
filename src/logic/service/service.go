@@ -145,8 +145,9 @@ func (s service) GetDevices(ctx context.Context) ([]model.Device, error) {
 	if devs == nil {
 		devs = []model.Device{}
 	}
-	for _, d := range devs {
+	for i, d := range devs {
 		s.acceptenceTest(&d)
+		devs[i] = d
 	}
 	return devs, nil
 }
